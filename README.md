@@ -1,16 +1,11 @@
-# turtlebro_patrol
+# Turtlebro_patrol пакет робота патрульного
 
-…or create a new repository on the command line
-echo "# turtlebro_patrol" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git remote add origin https://github.com/voltbro/turtlebro_patrol.git
-git push -u origin master
+### Установка пакета
+На RaspberryPi установить пакет "стандартным" способом
 
-…or push an existing repository from the command line
-git remote add origin https://github.com/voltbro/turtlebro_patrol.git
-git push -u origin master
-
-…or import code from another repository
-You can initialize this repository with code from a Subversion, Mercurial, or TFS project.
+```
+cd ros_catkin_ws/src
+git clone https://github.com/voltbro/turtlebro_patrol
+cd ..
+sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space /opt/ros/melodic --pkg=turtlebro_patrol
+```
