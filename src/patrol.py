@@ -18,7 +18,10 @@ class Emergency_reaction(object):
         rospy.Subscriber('tb_switch', String, self.power_switch)
         self.current_goal = 0
         self.home = [0,0,0]
+
+        self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.parce()
+
         rospy.loginfo("Init done")
     
     def event_alert(self, event):
@@ -77,7 +80,7 @@ class Emergency_reaction(object):
 
         try:
             #Define xml-goals file path
-            tree = ET.parse('goals.xml')
+            tree = ET.parse(self.waypoints_data_file)
             root = tree.getroot()
             #constructing goals data variables
             self.goals = []
