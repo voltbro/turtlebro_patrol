@@ -9,6 +9,19 @@ git clone https://github.com/voltbro/turtlebro_patrol
 cd ..
 sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space /opt/ros/melodic --pkg=turtlebro_patrol
 ```
+### Запуск
+```
+#  Запуск ноды навигации и ноды для патрулирования
+roslaunch turtlebro_patrol patrol.launch
+
+#  Запуск только ноды для патрулирования
+roslaunch turtlebro_patrol patrol_run.launch
+```
+
+### Настройка патрулирования
+Координаты точек, по которым робот начинает патрулировать находятся в файле /data/goals.xml
+После изменения даннных в файле необходимо пересобрать пакет.
+
 
 ### Зависимости
 Для выполнения задач по патрулированию, необходмо чтобы на роботе были установленны пакеты навигации:
