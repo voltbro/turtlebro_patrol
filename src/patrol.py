@@ -14,37 +14,28 @@ class Emergency_reaction(object):
         rospy.init_node('tb_ws_actions')
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
-        rospy.Subscriber('thermo_event', String, self.event_alert)
-        rospy.Subscriber('tb_switch', String, self.power_switch)
+        rospy.Subscriber('patrol_control', String, self.patrol_control_alert)
         self.current_goal = 0
         self.home = [0,0,0]
 
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
-        self.parce()
+        self.data_loader()
 
         rospy.loginfo("Init done")
     
-    def event_alert(self, event):
-        if self.started:
-            self.controller(event)
-        else:
-            rospy.loginfo("TB stopped")
-    
-    # Callback function of swich patrol sequence on/off through topic message
-    def power_switch(self, msg):
-        if msg.data == "start":
+    def patrol_control_alert(self, alert):
+        if alert.data == "start":
             self.started = True
             rospy.loginfo("Start sequence recieved")
-            self.controller('next_goal')
-        elif msg.data == "stop":
+            self.controller(alert.data)
+        elif alert.data == "stop":
             self.started = False
             rospy.loginfo("STOP sequence recieved")
-            self.controller('stop')
+            self.controller(alert.data)
+        elif self.started:
+            self.controller(alert.data)
         else:
-            rospy.loginfo(msg)
-            rospy.loginfo("Power Swich sequence UNRECOGNIZED")
-            rospy.sleep(0.5)
-        
+            rospy.loginfo("TB stopped")
 
     def goal_assemble(self, target):
         # Creates a new goal with the MoveBaseGoal constructor
@@ -60,7 +51,6 @@ class Emergency_reaction(object):
 
 
     def goal_send(self, goal_to_send):
-
         # Waits until the action server has started up and started listening for goals.
         self.client.wait_for_server()
         # Sends the goal to the action server.
@@ -74,10 +64,9 @@ class Emergency_reaction(object):
         else:
             rospy.loginfo("Goal reached!")
             self.current_goal += 1
-            self.controller('next_goal')
+            self.controller('start')
     
-    def parce(self):
-
+    def data_loader(self):
         try:
             #Define xml-goals file path
             tree = ET.parse(self.waypoints_data_file)
@@ -112,7 +101,7 @@ class Emergency_reaction(object):
             self.client.cancel_goal()
             self.started = False
             self.goal_send(self.goal_assemble(self.home))
-        elif cmd == 'next_goal':
+        elif cmd == 'start':
             while self.started:
                 if self.current_goal < len(self.goals):
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
