@@ -15,8 +15,10 @@ class Emergency_reaction(object):
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         rospy.Subscriber('patrol_control', String, self.patrol_control_alert)
+        self.paused = False #flag for pause command
+        self.go_home = False #flag for home command
         self.current_goal = 0
-        self.home = [0,0,0]
+        self.home = [0,0,0] #position where to go if "home" command recieved
 
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
@@ -24,18 +26,11 @@ class Emergency_reaction(object):
         rospy.loginfo("Init done")
     
     def patrol_control_alert(self, alert):
-        if alert.data == "start":
-            self.started = True
-            rospy.loginfo("Start sequence recieved")
-            self.controller(alert.data)
-        elif alert.data == "stop":
-            self.started = False
-            rospy.loginfo("STOP sequence recieved")
-            self.controller(alert.data)
-        elif self.started:
+        if alert.data in ("start", "stop", "pause", "resume", "home"): #to make sure command recieved is in list of commands
+            print("%s sequence recieved" %alert.data)
             self.controller(alert.data)
         else:
-            rospy.loginfo("TB stopped")
+            rospy.loginfo("Alert unrecognized")
 
     def goal_assemble(self, target):
         # Creates a new goal with the MoveBaseGoal constructor
@@ -55,21 +50,25 @@ class Emergency_reaction(object):
         self.client.wait_for_server()
         # Sends the goal to the action server.
         self.client.send_goal(goal_to_send)
-        # Waits for the server to finish performing the action.
-        wait = self.client.wait_for_result() #TODO rework for CB driven architecture
+        
         # Result of executing the action
-        if not wait:
-            rospy.logerr("Action server not available!")
-            rospy.loginfo("Goal NOT reached!")
-        else:
-            rospy.loginfo("Goal reached!")
-            self.current_goal += 1
-            self.controller('start')
+        _result = self.client.get_result()
+        while _result == None: #"cb" fake cycle made
+            _result = self.client.get_result()
+            rospy.sleep(0.2)
+
+        rospy.sleep(0.5) #to make a little stop at goal point
+        rospy.loginfo("Goal %s reached!" %self.current_goal)
+        # Moving pointer to next goal
+        self.current_goal += 1
+        self.controller('start')  
+
     
     def data_loader(self):
+        rospy.loginfo("XML Parsing started")
         try:
             #Define xml-goals file path
-            tree = ET.parse(self.waypoints_data_file)
+            tree = ET.parse(self.waypoints_data_file) #get file from launch params
             root = tree.getroot()
             #constructing goals data variables
             self.goals = []
@@ -87,30 +86,27 @@ class Emergency_reaction(object):
 
     def controller(self, cmd):
         if cmd == 'stop':
-            rospy.loginfo("STOP command recieved")
             self.client.cancel_goal()
             rospy.signal_shutdown("Shutting down")
         elif cmd == 'pause':
-            rospy.loginfo("Pause command recieved")
+            self.paused = True
+            self.current_goal -= 1
             self.client.cancel_goal()
         elif cmd == 'resume':
-            rospy.loginfo("Resume command recieved")
+            self.paused = False
+            self.client.cancel_goal()
             self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
         elif cmd == 'home':
-            rospy.loginfo("GO HOME command recieved")
+            self.go_home = True
             self.client.cancel_goal()
-            self.started = False
             self.goal_send(self.goal_assemble(self.home))
-        elif cmd == 'start':
-            while self.started:
+        else:
+            while not self.paused and not self.go_home:
                 if self.current_goal < len(self.goals):
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
                 else:
                     self.current_goal = 0
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
-        else:
-            self.client.cancel_goal()
-            rospy.loginfo("Service STOPPED")
 
     # If the python node is executed as main process (sourced directly)
 if __name__ == '__main__':
