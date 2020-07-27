@@ -107,7 +107,7 @@ class Emergency_reaction(object):
         #main state machine controller
         if cmd == 'stop':
             self.client.cancel_goal()
-            rospy.signal_shutdown("Shutting down")
+            self.shutdown()
         elif cmd == 'pause':
             self.paused = True
             self.current_goal -= 1
@@ -135,4 +135,5 @@ if __name__ == '__main__':
         rospy.loginfo("Waiting for Start command")
         rospy.spin()
     except rospy.ROSInterruptException:
+        er.shutdown()
         rospy.loginfo("Patrol stoped due to ROS interrupt")
