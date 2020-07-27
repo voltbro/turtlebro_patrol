@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 import rospy
+
+#import Twist data type for direct control
+from geometry_msgs.msg import Twist
+
 # Brings in the SimpleActionClient
 import actionlib
+
 # Brings in the .action file and messages used by the move base action
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from std_msgs.msg import String
+
 # XML parcer lib
 import xml.etree.ElementTree as ET
 
@@ -15,6 +21,7 @@ class Emergency_reaction(object):
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         rospy.Subscriber('patrol_control', String, self.patrol_control_alert)
+        self.cmd_pub = rospy.Publisher('/cmd_ver', Twist, queue_size=1)
         self.paused = False #flag for pause command
         self.go_home = False #flag for home command
         self.current_goal = 0
@@ -24,6 +31,18 @@ class Emergency_reaction(object):
         self.data_loader()
 
         rospy.loginfo("Init done")
+
+    def __del__(self):
+        #deleting class
+        self.shutdown()
+
+    def shutdown(self):
+        rospy.loginfo('Shuting down patrol')
+        rospy.signal_shutdown("Canceling goal")
+        self.client.cancel_goal()
+        rospy.signal_shutdown("Stoping robot")
+        self.cmd_pub.publish(Twist)
+        rospy.signal_shutdown("Shutting down rospy")
     
     def patrol_control_alert(self, alert):
         if alert.data in ("start", "stop", "pause", "resume", "home"): #to make sure command recieved is in list of commands
@@ -85,6 +104,7 @@ class Emergency_reaction(object):
             rospy.loginfo("XML parcer failed")
 
     def controller(self, cmd):
+        #main state machine controller
         if cmd == 'stop':
             self.client.cancel_goal()
             rospy.signal_shutdown("Shutting down")
@@ -115,4 +135,4 @@ if __name__ == '__main__':
         rospy.loginfo("Waiting for Start command")
         rospy.spin()
     except rospy.ROSInterruptException:
-        rospy.loginfo("Thermovisor Alert stopped")
+        rospy.loginfo("Patrol stoped due to ROS interrupt")
