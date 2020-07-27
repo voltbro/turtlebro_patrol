@@ -38,9 +38,9 @@ class Emergency_reaction(object):
 
     def shutdown(self):
         rospy.loginfo('Shuting down patrol')
-        rospy.signal_shutdown("Canceling goal")
+        rospy.loginfo("Canceling goal")
         self.client.cancel_goal()
-        rospy.signal_shutdown("Stoping robot")
+        rospy.loginfo("Stoping robot")
         self.cmd_pub.publish(Twist)
         rospy.signal_shutdown("Shutting down rospy")
     
