@@ -25,7 +25,7 @@ class Emergency_reaction(object):
         self.paused = False #flag for pause command
         self.go_home = False #flag for home command
         self.current_goal = 0
-        self.home = [0,0,0] #position where to go if "home" command recieved
+        self.home = [0,0,1] #position where to go if "home" command recieved
 
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
@@ -59,8 +59,7 @@ class Emergency_reaction(object):
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose.position.x = float(target[1])
         goal.target_pose.pose.position.y = float(target[2])
-        # No rotation of the mobile base frame w.r.t. map frame
-        goal.target_pose.pose.orientation.w = 1.0
+        goal.target_pose.pose.orientation.w = float(target[3])
         return goal
 
 
@@ -98,6 +97,7 @@ class Emergency_reaction(object):
                 self.goals[i].append(goal.get('id'))
                 self.goals[i].append(goal.get('x'))
                 self.goals[i].append(goal.get('y'))
+                self.goals[i].append(goal.get('w'))
                 i += 1
             rospy.loginfo("XML parcing done. %s goals detected." %(len(self.goals)))
         except:
