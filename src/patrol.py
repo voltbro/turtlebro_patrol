@@ -26,7 +26,7 @@ class Emergency_reaction(object):
         self.go_home = False #flag for home command
         self.current_goal = 0
         self.home = [0,0,1] #position where to go if "home" command recieved
-
+	self.stop = Twist()
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
 
@@ -37,12 +37,11 @@ class Emergency_reaction(object):
         self.shutdown()
 
     def shutdown(self):
-        rospy.loginfo('Shuting down patrol')
-        rospy.loginfo("Canceling goal")
+        print('Shuting down patrol')
+        print("Canceling goal")
         self.client.cancel_goal()
-        rospy.loginfo("Stoping robot")
-        self.cmd_pub.publish(Twist)
-        rospy.signal_shutdown("Shutting down rospy")
+        print("Stoping robot")
+        self.cmd_pub.publish(self.stop)
     
     def patrol_control_alert(self, alert):
         if alert.data in ("start", "stop", "pause", "resume", "home"): #to make sure command recieved is in list of commands
