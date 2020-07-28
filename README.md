@@ -1,7 +1,8 @@
-# Turtlebro_patrol пакет робота патрульного
+# Turtlebro_patrol ROS package for Turtlebro patrolbot
 
-### Зависимости
-Для выполнения задач по патрулированию, необходмо чтобы на роботе были установленны пакеты навигации:
+### Dependecies
+Dependences
+To perform patrolling tasks, you should have navigation packages installed on the robot:
 
 * turtlebro_navigation
 * amcl
@@ -13,8 +14,8 @@
 * move_base_msgs
 
 
-### Установка пакета
-На RaspberryPi установить пакет "стандартным" способом
+### Package installation
+Install the package on RaspberryPi in the "standard" way:
 
 ```
 cd ros_catkin_ws/src
@@ -23,25 +24,25 @@ cd ..
 sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space /opt/ros/melodic --pkg=turtlebro_patrol
 ```
 
-### Запуск
+### Launch
 ```
-#  Запуск ноды навигации и ноды для патрулирования
+#  Navigation and patrol node launch
 roslaunch turtlebro_patrol patrol.launch
 
-#  Запуск только ноды для патрулирования
+#  Patrol node launch only
 roslaunch turtlebro_patrol patrol_run.launch
 ```
 
-### Настройка патрулирования
-Координаты точек, по которым робот начинает патрулировать находятся в файле /data/goals.xml
-После изменения даннных в файле необходимо пересобрать пакет.
+### Configuring patrolling
+The coordinates of the points where the robot starts patrolling are located in the file /data/goals.xml 
+After changing the data in the file, you should rebuild the package.
 
-### Управление патрулированием
-Всё управление патрульным роботом осуществляется через передачу сообщений типа std_msgs/String в топик /patrol_control.
+### Patrol control
+The control of the patrol bot is performed by sending messages of the std_msgs/String type to the topic /patrol_control
 
-Принимаемые команды:
-1. Start - запускает цикл патрулирования
-2. Pause - приостанавливает патрулирование в любой точке
-3. Resume - возобновляет патрулирование, остановленное командой Pause
-4. Home - останавливает патрулирование и отправляет робота в точку с координатами 0, 0
-5. Stop - останавливает патрулирование и выполнение пакета
+Accepted commands:
+1. Start -starts the patrol cycle
+2. Pause -pauses patrolling at any point
+3. Resume -resumes a patrol that was stopped by the Pause command
+4. Home -stops patrolling and sends the robot to a point with coordinates 0, 0
+5. Stop -stops patrolling and executing the package

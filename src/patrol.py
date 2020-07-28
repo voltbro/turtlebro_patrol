@@ -105,7 +105,6 @@ class Emergency_reaction(object):
     def controller(self, cmd):
         #main state machine controller
         if cmd == 'stop':
-            self.client.cancel_goal()
             self.shutdown()
         elif cmd == 'pause':
             self.paused = True
