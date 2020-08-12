@@ -27,8 +27,8 @@ class EmergencyReaction(object):
         self.paused = False  # flag for pause command
         self.go_home = False  # flag for home command
         self.current_goal = 0
-        self.home = [0,0,1]  # position where to go if "home" command recieved
-        self.stop = Twist()
+        self.home = [0, 0, 1, 1]  # position where to go if "home" command recieved
+        self.stop_cmd = Twist()
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
 
@@ -45,7 +45,7 @@ class EmergencyReaction(object):
         print("Canceling goal")
         self.client.cancel_goal()
         print("Stoping robot")
-        self.cmd_pub.publish(self.stop)  # it will be better if it can stop motors after shutdown
+        self.cmd_pub.publish(self.stop_cmd)  # it will be better if it can stop motors after shutdown
     
     def patrol_control_alert(self, alert):
         if alert.data in ("start", "stop", "pause", "resume", "home"): #to make sure command recieved is in list of commands
@@ -65,19 +65,23 @@ class EmergencyReaction(object):
         goal.target_pose.pose.position.x = float(target[1])
         goal.target_pose.pose.position.y = float(target[2])
         goal.target_pose.pose.orientation.w = float(target[3])
+        self.log_pub.publish("patrol created goal {} from target {} ".format(goal, target))
         return goal
 
     def goal_send(self, goal_to_send):
+        self.log_pub.publish("patrol sending to move_base goal {} ".format(goal_to_send))
         # Waits until the action server has started up and started listening for goals.
         self.client.wait_for_server()
         # Sends the goal to the action server.
         self.client.send_goal(goal_to_send)
-        
+
         # Result of executing the action
         _result = self.client.get_result()
+
         while _result == None: #"cb" fake cycle made
             _result = self.client.get_result()
             rospy.sleep(0.2)
+        self.log_pub.publish("result of sending goal is {} ".format(_result))
 
         rospy.sleep(0.5)  # to make a little stop at goal point
         self.log_pub.publish("Goal {} reached!".format(self.current_goal))
@@ -104,13 +108,14 @@ class EmergencyReaction(object):
                 self.goals[i].append(goal.get('y'))
                 self.goals[i].append(goal.get('w'))
                 i += 1
-            rospy.loginfo("XML parcing done. %s goals detected." %(len(self.goals)))
-            self.log_pub.publish("XML parcing done. {} goals detected.".format(len(self.goals)))
+            rospy.loginfo("XML parcing done. goals detected: {}".format(self.goals))
+            self.log_pub.publish("XML parcing done. goals detected:  {}".format(self.goals))
         except:
             rospy.loginfo("XML parcer failed")
             self.log_pub.publish("XML parcer failed")
 
     def controller(self, cmd):
+        self.log_pub.publish("controller of patrol")
         #main state machine controller
         if cmd == 'stop':
             self.shutdown()
