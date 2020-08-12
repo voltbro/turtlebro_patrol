@@ -14,40 +14,46 @@ from std_msgs.msg import String
 # XML parcer lib
 import xml.etree.ElementTree as ET
 
-class Emergency_reaction(object):
+
+class EmergencyReaction(object):
 
     def __init__(self):
         rospy.init_node('tb_ws_actions')
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         rospy.Subscriber('patrol_control', String, self.patrol_control_alert)
-        self.cmd_pub = rospy.Publisher('/cmd_ver', Twist, queue_size=1)
-        self.paused = False #flag for pause command
-        self.go_home = False #flag for home command
+        self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+        self.log_pub = rospy.Publisher('/patrol_log', String, queue_size=10)
+        self.paused = False  # flag for pause command
+        self.go_home = False  # flag for home command
         self.current_goal = 0
-        self.home = [0,0,1] #position where to go if "home" command recieved
-	self.stop = Twist()
+        self.home = [0,0,1]  # position where to go if "home" command recieved
+        self.stop = Twist()
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
 
         rospy.loginfo("Init done")
+        self.log_pub.publish("Init done")
 
     def __del__(self):
         #deleting class
         self.shutdown()
 
     def shutdown(self):
-        print('Shuting down patrol')
+        print('Shutting down patrol')
+        self.log_pub.publish("Shutting down patrol")
         print("Canceling goal")
         self.client.cancel_goal()
         print("Stoping robot")
-        self.cmd_pub.publish(self.stop)
+        self.cmd_pub.publish(self.stop)  # it will be better if it can stop motors after shutdown
     
     def patrol_control_alert(self, alert):
         if alert.data in ("start", "stop", "pause", "resume", "home"): #to make sure command recieved is in list of commands
             print("%s sequence recieved" %alert.data)
+            self.log_pub.publish("{} sequence recieved".format(alert.data))
             self.controller(alert.data)
         else:
+            self.log_pub.publish("Alert unrecognized")
             rospy.loginfo("Alert unrecognized")
 
     def goal_assemble(self, target):
@@ -61,7 +67,6 @@ class Emergency_reaction(object):
         goal.target_pose.pose.orientation.w = float(target[3])
         return goal
 
-
     def goal_send(self, goal_to_send):
         # Waits until the action server has started up and started listening for goals.
         self.client.wait_for_server()
@@ -74,15 +79,16 @@ class Emergency_reaction(object):
             _result = self.client.get_result()
             rospy.sleep(0.2)
 
-        rospy.sleep(0.5) #to make a little stop at goal point
+        rospy.sleep(0.5)  # to make a little stop at goal point
+        self.log_pub.publish("Goal {} reached!".format(self.current_goal))
         rospy.loginfo("Goal %s reached!" %self.current_goal)
         # Moving pointer to next goal
         self.current_goal += 1
         self.controller('start')  
 
-    
     def data_loader(self):
         rospy.loginfo("XML Parsing started")
+        self.log_pub.publish("XML Parsing started")
         try:
             #Define xml-goals file path
             tree = ET.parse(self.waypoints_data_file) #get file from launch params
@@ -99,8 +105,10 @@ class Emergency_reaction(object):
                 self.goals[i].append(goal.get('w'))
                 i += 1
             rospy.loginfo("XML parcing done. %s goals detected." %(len(self.goals)))
+            self.log_pub.publish("XML parcing done. {} goals detected.".format(len(self.goals)))
         except:
             rospy.loginfo("XML parcer failed")
+            self.log_pub.publish("XML parcer failed")
 
     def controller(self, cmd):
         #main state machine controller
@@ -126,10 +134,11 @@ class Emergency_reaction(object):
                     self.current_goal = 0
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
 
-    # If the python node is executed as main process (sourced directly)
+
+# If the python node is executed as main process (sourced directly)
 if __name__ == '__main__':
     try:
-        er = Emergency_reaction()
+        er = EmergencyReaction()
         rospy.loginfo("Waiting for Start command")
         rospy.spin()
     except rospy.ROSInterruptException:

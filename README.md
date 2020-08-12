@@ -34,7 +34,8 @@ roslaunch turtlebro_patrol patrol_run.launch
 ```
 
 ### Configuring patrolling
-The coordinates of the points where the robot starts patrolling are located in the file /opt/ros/melodic/share/turtlebro_patrol/data/goals.xml 
+The coordinates of the points where the robot starts patrolling are located in the file
+~/ros_catkin_ws/src/turtlebro_patrol/data/goals.xml
 After changing the data in the file, you should rebuild the package.
 
 ### Patrol control
