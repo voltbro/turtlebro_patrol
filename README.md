@@ -25,6 +25,13 @@ sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release 
 ```
 
 ### Launch
+
+Before launch you have to clear data from stm32 by sending reset command:
+```
+rosservice call /reset
+```
+
+
 ```
 #  Navigation and patrol node launch
 roslaunch turtlebro_patrol patrol.launch
@@ -37,6 +44,15 @@ roslaunch turtlebro_patrol patrol_run.launch
 The coordinates of the points where the robot starts patrolling are located in the file
 ~/ros_catkin_ws/src/turtlebro_patrol/data/goals.xml
 After changing the data in the file, you should rebuild the package.
+
+
+#Important note! 
+
+when you adding to goals.xml poimt like
+```
+<goal id='1' x='1' y='0' w='1'/>
+```
+remember that x axis is forward for robot, and y-axis is left for robot.
 
 ### Patrol control
 The control of the patrol bot is performed by sending messages of the std_msgs/String type to the topic /patrol_control

@@ -27,7 +27,7 @@ class EmergencyReaction(object):
         self.paused = False  # flag for pause command
         self.go_home = False  # flag for home command
         self.current_goal = 0
-        self.home = [0, 0, 1, 1]  # position where to go if "home" command recieved
+        self.home = [0, 0, 0, 1]  # position where to go if "home" command recieved
         self.stop_cmd = Twist()
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
@@ -44,6 +44,9 @@ class EmergencyReaction(object):
         self.log_pub.publish("Shutting down patrol")
         print("Canceling goal")
         self.client.cancel_goal()
+        # really navigation doesnt end here
+        # its not good
+        # TODO fix
         print("Stoping robot")
         self.cmd_pub.publish(self.stop_cmd)  # it will be better if it can stop motors after shutdown
     
@@ -136,6 +139,7 @@ class EmergencyReaction(object):
                 if self.current_goal < len(self.goals):
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
                 else:
+                    self.log_pub.publish("All goals achieved! Loop starts again")
                     self.current_goal = 0
                     self.goal_send(self.goal_assemble(self.goals[self.current_goal]))
 
