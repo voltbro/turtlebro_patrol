@@ -58,8 +58,8 @@ remember that x axis is forward for robot, and y-axis is left for robot.
 The control of the patrol bot is performed by sending messages of the std_msgs/String type to the topic /patrol_control
 
 Accepted commands:
-1. start -starts the patrol cycle
-2. pause -pauses patrolling at any point
-3. resume -resumes a patrol that was stopped by the Pause command
-4. home -stops patrolling and sends the robot to a point with coordinates 0, 0
-5. stop -stops patrolling and executing the package
+1. next - starts the patrol cycle or switch robot to nex goal
+2. pause - pauses patrolling at any point
+3. resume - resumes a patrol that was stopped by the Pause command
+4. home - stops patrolling and sends the robot to a point with coordinates 0, 0
+5. shutdown - stops patrolling and executing the package
