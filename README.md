@@ -52,7 +52,8 @@ when you adding to goals.xml poimt like
 ```
 <goal id='1' x='1' y='0' theta='90'/>
 ```
-remember that x axis is forward for robot, and y-axis is left for robot.
+remember that x axis is forward for robot, and y-axis is left for robot. 
+"Theta" should be set in degrees with right-hand-rule rotation
 
 ### Patrol control
 The control of the patrol bot is performed by sending messages of the std_msgs/String type to the topic /patrol_control
@@ -60,6 +61,5 @@ The control of the patrol bot is performed by sending messages of the std_msgs/S
 Accepted commands:
 1. next - starts the patrol cycle or switch robot to nex goal
 2. pause - pauses patrolling at any point
-3. resume - resumes a patrol that was stopped by the Pause command
-4. home - stops patrolling and sends the robot to a point with coordinates 0, 0
+3. home - stops patrolling and sends the robot to a point with coordinates 0, 0, 0(deg)
 5. shutdown - stops patrolling and executing the package
