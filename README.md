@@ -33,7 +33,7 @@ rosservice call /reset
 
 
 ```
-#  Navigation and patrol node launch
+#  Navigation node and patrol node launch
 roslaunch turtlebro_patrol patrol.launch
 
 #  Patrol node launch only
@@ -50,7 +50,7 @@ After changing the data in the file, you should rebuild the package.
 
 when you adding to goals.xml poimt like
 ```
-<goal id='1' x='1' y='0' w='1'/>
+<goal id='1' x='1' y='0' theta='90'/>
 ```
 remember that x axis is forward for robot, and y-axis is left for robot.
 

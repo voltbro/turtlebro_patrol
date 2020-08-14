@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <data>
-    <goal id='1' x='1' y='0' theta='0'/> 
-    <goal id='2' x='1' y='1' theta='90'/>
-    <goal id='3' x='0' y='0' theta='180'/> 
+    <goal id='1' x='1' y='0' theta='90'/> 
+    <goal id='2' x='1' y='0.5' theta='180'/>
+    <goal id='3' x='0' y='0' theta='0'/> 
 </data>
