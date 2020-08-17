@@ -184,7 +184,7 @@ class EmergencyReaction(object):
         self.cmd_pub.publish(self.stop_cmd)
     
     def going_home(self):
-        self.go_home = True
+        self.go_home = False
         self.cmd_pub.publish(self.stop_cmd)
         self.goal_send(self.goal_message_assemble(self.home_location))
 
@@ -209,7 +209,6 @@ class EmergencyReaction(object):
         elif self.next_:
             self.going_to_next_goal()
         rospy.sleep(0.2)
-        # self.controller()
 
 
 # If the python node is executed as main process (sourced directly)
