@@ -197,7 +197,7 @@ class EmergencyReaction(object):
         if self.current_goal < len(self.goals):
             self.goal_send(self.goal_message_assemble(self.goals[self.current_goal]))
         else:
-            self.log_pub.publish("Patrol: All goals achieved! Starting patrolling again from first goal =")
+            self.log_pub.publish("Patrol: All goals achieved! Starting patrolling again from first goal ")
             self.current_goal = 0
             self.goal_send(self.goal_message_assemble(self.goals[self.current_goal]))
 
@@ -207,10 +207,13 @@ class EmergencyReaction(object):
         #     self.set_shutdown()
         # shutdown will be parsed outside of that function, in main loop
         if self.pause:
+            self.log_pub.publish("Patrol: pause flag")
             self.set_pause()
         elif self.go_home:
+            self.log_pub.publish("Patrol: go_home flag")
             self.going_home()
         elif self.next_:
+            self.log_pub.publish("Patrol: next flag")
             self.going_to_next_goal()
         rospy.sleep(0.2)
 
