@@ -45,12 +45,12 @@ class EmergencyReaction(object):
 
     def __del__(self):
         #deleting class
-        self.shutdown()
+        self.set_shutdown()
     
     def patrol_control_command(self, alert):
         if alert.data in ("next", "shutdown", "pause", "home"): #to make sure command recieved is in list of commands
-            print("%s sequence recieved" %alert.data)
-            self.log_pub.publish("{} sequence recieved".format(alert.data))
+            print("{} sequence recieved".format(alert.data))
+            self.log_pub.publish("{} sequence received".format(alert.data))
             if alert.data == "next":
                 self.next = True
                 self.pause = False
@@ -92,7 +92,7 @@ class EmergencyReaction(object):
         goal.target_pose.pose.orientation.y = q[1]
         goal.target_pose.pose.orientation.z = q[2]
         goal.target_pose.pose.orientation.w = q[3]
-        self.log_pub.publish("patrol created goal {} from target {} ".format(goal, target))
+        self.log_pub.publish("Patrol: created goal {} from target {} ".format(goal, target))
         return goal
 
     def goal_reached(self):
@@ -109,7 +109,6 @@ class EmergencyReaction(object):
             self.next = True
 
         rospy.sleep(0.5) # to make a little stop before next command
-        
 
     def goal_send(self, goal_to_send):
         #self.log_pub.publish("patrol sending to move_base goal {} ".format(goal_to_send))
@@ -154,7 +153,7 @@ class EmergencyReaction(object):
     def set_shutdown(self):
         self.log_pub.publish("Shutting down patrol")
         self.cmd_pub.publish(self.stop_cmd)  # it will be better if it can stop motors after shutdown
-        rospy.signal_shutdown()
+        rospy.signal_shutdown(reason="Patrol: shutdown caused by user")
 
     def set_pause(self):
         self.cmd_pub.publish(self.stop_cmd)
@@ -194,5 +193,5 @@ if __name__ == '__main__':
         er.controller()
         rospy.spin()
     except rospy.ROSInterruptException:
-        er.shutdown()
+        er.set_shutdown()
         rospy.loginfo("Patrol stoped due to ROS interrupt")
