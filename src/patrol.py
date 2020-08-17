@@ -39,9 +39,9 @@ class EmergencyReaction(object):
         self.current_goal = 0
         self.home_location = [0, 0, 0, 0]  # position where to go if "home" command recieved
         self.stop_cmd = Twist()
+        self.goals = list()
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         self.data_loader()
-        self.goals = list()
         rospy.loginfo("Init done, go to loop")
         self.log_pub.publish("Init done, go to loop")
 
@@ -71,7 +71,7 @@ class EmergencyReaction(object):
     
     def patrol_control_command(self, alert):
         if alert.data in ("next", "shutdown", "pause", "home"):  # to make sure command recieved is in list of commands
-            print("Patrol: {} sequence recieved".format(alert.data))
+            print("Patrol: {} sequence received".format(alert.data))
             self.log_pub.publish("Patrol: {} sequence received".format(alert.data))
             if alert.data == "next":
                 self.next_ = True
@@ -97,9 +97,9 @@ class EmergencyReaction(object):
                 self.pause = False
                 self.goal_canceled = False
                 self.go_home = False
-            else:
-                self.log_pub.publish("Patrol: Command unrecognized")
-                rospy.loginfo("Patrol: Command unrecognized")
+        else:
+            self.log_pub.publish("Patrol: Command unrecognized")
+            rospy.loginfo("Patrol: Command unrecognized")
 
     def goal_message_assemble(self, target):
         # Creates a new goal with the MoveBaseGoal constructor
@@ -152,12 +152,12 @@ class EmergencyReaction(object):
         rospy.loginfo("Patrol: XML Parsing started")
         self.log_pub.publish("Patrol: XML Parsing started")
         try:
-            #Define xml-goals file path
-            tree = ET.parse(self.waypoints_data_file) #get file from launch params
+            # Define xml-goals file path
+            tree = ET.parse(self.waypoints_data_file)  # get file from launch params
             root = tree.getroot()
-            #constructing goals data variables
+            # constructing goals data variables
 
-            #filling goals var with XML file data
+            # filling goals var with XML file data
             i = 0  # counter var
             for goal in root.findall('goal'):
                 self.goals.append(list())  # appending new list for new goal in goals's list
@@ -169,8 +169,8 @@ class EmergencyReaction(object):
             rospy.loginfo("Patrol: XML parcing done. goals detected: {}".format(self.goals))
             self.log_pub.publish("Patrol:  XML parcing done. goals detected:  {}".format(self.goals))
         except Exception as e:
-            rospy.loginfo("XML parcer failed {}".format(e))
-            self.log_pub.publish("XML parcer failed")
+            rospy.logerr("XML parser failed {}".format(e))
+            self.log_pub.publish("XML parser failed")
             exc_info = sys.exc_info()
             traceback.print_exception(*exc_info)
             del exc_info
@@ -221,4 +221,4 @@ if __name__ == '__main__':
         # rospy.spin()
     except rospy.ROSInterruptException:
         er.set_shutdown()
-        rospy.loginfo("Patrol stoped due to ROS interrupt")
+        rospy.loginfo("Patrol stopped due to ROS interrupt")
