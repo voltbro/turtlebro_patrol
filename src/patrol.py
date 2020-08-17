@@ -184,9 +184,13 @@ class EmergencyReaction(object):
         self.cmd_pub.publish(self.stop_cmd)
     
     def going_home(self):
+        self.log_pub.publish("Patrol: go home")
         self.go_home = False
+        self.log_pub.publish("Patrol: stopping robot")
         self.cmd_pub.publish(self.stop_cmd)
-        self.goal_send(self.goal_message_assemble(self.home_location))
+        home_goal = self.goal_message_assemble(self.home_location)
+        self.log_pub.publish("Patrol: sending home_goal {}".format(home_goal))
+        self.goal_send(home_goal)
 
     def going_to_next_goal(self):
         self.next_ = False
