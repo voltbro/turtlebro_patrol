@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import rospy
 import math
+import sys
+import traceback
 
 #import Twist data type for direct control
 from geometry_msgs.msg import Twist
@@ -68,9 +70,9 @@ class EmergencyReaction(object):
     #     self.set_shutdown()
     
     def patrol_control_command(self, alert):
-        if alert.data in ("next", "shutdown", "pause", "home"): #to make sure command recieved is in list of commands
-            print("{} sequence recieved".format(alert.data))
-            self.log_pub.publish("{} sequence received".format(alert.data))
+        if alert.data in ("next", "shutdown", "pause", "home"):  # to make sure command recieved is in list of commands
+            print("Patrol: {} sequence recieved".format(alert.data))
+            self.log_pub.publish("Patrol: {} sequence received".format(alert.data))
             if alert.data == "next":
                 self.next_ = True
                 self.pause = False
@@ -96,8 +98,8 @@ class EmergencyReaction(object):
                 self.goal_canceled = False
                 self.go_home = False
             else:
-                self.log_pub.publish("Command unrecognized")
-                rospy.loginfo("Command unrecognized")
+                self.log_pub.publish("Patrol: Command unrecognized")
+                rospy.loginfo("Patrol: Command unrecognized")
 
     def goal_message_assemble(self, target):
         # Creates a new goal with the MoveBaseGoal constructor
@@ -155,8 +157,8 @@ class EmergencyReaction(object):
             root = tree.getroot()
             #constructing goals data variables
 
-            #filing goals var with XML file data
-            i = 0 #counter var
+            #filling goals var with XML file data
+            i = 0  # counter var
             for goal in root.findall('goal'):
                 self.goals.append(list())  # appending new list for new goal in goals's list
                 self.goals[i].append(goal.get('id'))
@@ -166,9 +168,12 @@ class EmergencyReaction(object):
                 i += 1
             rospy.loginfo("Patrol: XML parcing done. goals detected: {}".format(self.goals))
             self.log_pub.publish("Patrol:  XML parcing done. goals detected:  {}".format(self.goals))
-        except:
-            rospy.loginfo("XML parcer failed")
+        except Exception as e:
+            rospy.loginfo("XML parcer failed {}".format(e))
             self.log_pub.publish("XML parcer failed")
+            exc_info = sys.exc_info()
+            traceback.print_exception(*exc_info)
+            del exc_info
 
     def set_shutdown(self):
         self.log_pub.publish("Patrol: shutting down patrol")
