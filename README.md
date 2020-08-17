@@ -46,9 +46,9 @@ The coordinates of the points where the robot starts patrolling are located in t
 After changing the data in the file, you should rebuild the package.
 
 
-#Important note! 
+_Important note!_ 
 
-when you adding to goals.xml poimt like
+when you adding to goals.xml point like
 ```
 <goal id='1' x='1' y='0' theta='90'/>
 ```
