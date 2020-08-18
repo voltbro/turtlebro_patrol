@@ -138,16 +138,21 @@ class EmergencyReaction(object):
     def goal_send(self, goal_to_send):
         self.log_pub.publish("Patrol: sending to move_base goal {} ".format(goal_to_send))
         # Waits until the action server has started up and started listening for goals.
+        self.log_pub.publish("Patrol: self.client.wait_for_server()")
         self.client.wait_for_server()
         # Sends the goal to the action server.
+        self.log_pub.publish("Patrol: self.client.send_goal(goal_to_send)")
         self.client.send_goal(goal_to_send)
+        self.log_pub.publish("Patrol: self.client.wait_for_result()")
         self.client.wait_for_result()
+        # self.log_pub.publish("Patrol: XML Parsing started")
         result = self.client.get_result()
-
+        self.log_pub.publish("Patrol: self.client.get_result() : {}".format(result))
         while result is None or not self.goal_canceled: #"cb" fake cycle made
             result = self.client.get_result()
             rospy.sleep(0.2)
 
+        self.log_pub.publish("Patrol: self.goal_reached()")
         self.goal_reached()
 
     def data_loader(self):
