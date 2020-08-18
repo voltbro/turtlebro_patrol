@@ -136,6 +136,7 @@ class EmergencyReaction(object):
         rospy.sleep(0.5) # to make a little stop before next command
 
     def goal_send(self, goal_to_send):
+        pdb.set_trace()
         self.log_pub.publish("Patrol: sending to move_base goal {} ".format(goal_to_send))
         # Waits until the action server has started up and started listening for goals.
         self.log_pub.publish("Patrol: self.client.wait_for_server()")
@@ -148,9 +149,10 @@ class EmergencyReaction(object):
         # self.log_pub.publish("Patrol: XML Parsing started")
         result = self.client.get_result()
         self.log_pub.publish("Patrol: self.client.get_result() : {}".format(result))
-        while result is None or not self.goal_canceled: #"cb" fake cycle made
-            result = self.client.get_result()
-            rospy.sleep(0.2)
+
+        # while result is None or not self.goal_canceled: #"cb" fake cycle made
+        #     result = self.client.get_result()
+        #     rospy.sleep(0.2)
 
         self.log_pub.publish("Patrol: self.goal_reached()")
         self.goal_reached()
