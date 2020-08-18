@@ -3,6 +3,7 @@ import rospy
 import math
 import sys
 import traceback
+import pdb
 
 #import Twist data type for direct control
 from geometry_msgs.msg import Twist
@@ -85,6 +86,7 @@ class EmergencyReaction(object):
                 self.goal_canceled = True
                 self.go_home = False
             elif alert.data == "home":
+                pdb.set_trace()
                 self.client.cancel_goal()
                 self.next_ = False
                 self.pause = False
