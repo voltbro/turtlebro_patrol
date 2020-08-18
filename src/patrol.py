@@ -71,6 +71,7 @@ class EmergencyReaction(object):
     #     self.set_shutdown()
     
     def patrol_control_command(self, alert):
+        pdb.set_trace()
         if alert.data in ("next", "shutdown", "pause", "home"):  # to make sure command recieved is in list of commands
             print("Patrol: {} sequence received".format(alert.data))
             self.log_pub.publish("Patrol: {} sequence received".format(alert.data))
@@ -86,7 +87,7 @@ class EmergencyReaction(object):
                 self.goal_canceled = True
                 self.go_home = False
             elif alert.data == "home":
-                pdb.set_trace()
+
                 self.client.cancel_goal()
                 self.next_ = False
                 self.pause = False
