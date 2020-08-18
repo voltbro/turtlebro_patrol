@@ -22,53 +22,61 @@ from tf.transformations import quaternion_from_euler
 import xml.etree.ElementTree as ET
 
 
-class EmergencyReaction(object):
+class PatrolHandler(object):
 
     def __init__(self):
-        rospy.init_node('tb_ws_actions')
+        rospy.init_node('patrol_handler')
+        # TODO remove log pub
+        # TODO create only one state 
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # subs and pubs
         rospy.Subscriber('patrol_control', String, self.patrol_control_command)
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.log_pub = rospy.Publisher('/patrol_log', String, queue_size=10)
-        self.goal_canceled = False  # flag for pause command
-        self.go_home = False  # flag for home command
-        self.pause = False
-        self.next_ = False
-        self.shutdown = False
-        self.home_reached = False
-        self.current_goal = 0
-        self.home_location = [0, 0, 0, 0]  # position where to go if "home" command recieved
+
+        self.state = "wait"
+        # state can be "wait" or "move" or "need_shutdown"
+        self.home_location = [0, 0, 0, 0]
+        # position where to go if "home" command recieved
         self.stop_cmd = Twist()
-        self.goals = list()
+        # command to stop motors
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
+        # call load data from xml-file
+        self.goals = list()
         self.data_loader()
+        # lets set current goal as 0`s element from goals array, loaded by self.data_loader()
+        self.current_goal_num = 0
+        self.current_goal = self.goals[self.current_goal_num]
+
         rospy.loginfo("Init done, go to loop")
         self.log_pub.publish("Init done, go to loop")
+        # go to infinite loop
+        self.loop()
 
-        self._loop()
-
-    def _loop(self):
+    def loop(self):
         try:
             # in that loop we will check if there is shutdown flag or rospy core have been crushed
-            while not rospy.core.is_shutdown() :#and not self.shutdown:
-                if not self.shutdown:
-                    # sleep a little and call state machine handler
-                    rospy.sleep(0.1)  # 10 Hz
-                    self.controller()
-                else:
+            while not rospy.core.is_shutdown():
+                if self.state == "need_shutdown":
+                    self.log_pub.publish("Patrol: shutdown flag")
                     # we found shutdown flag, caused by user
                     # time to stop robot and break that infinite loop
                     self.set_shutdown()
                     break
-
+                if self.state == "need_shutdown":
+                    self.log_pub.publish("Patrol: pause flag")
+                    self.set_pause()
+                if self.go_home:
+                    self.log_pub.publish("Patrol: go_home flag")
+                    self.going_home()
+                if self.next_:
+                    self.log_pub.publish("Patrol: next flag")
+                    self.going_to_next_goal()
+                rospy.sleep(0.2)  # 5 Hz
         except KeyboardInterrupt:
             self.log_pub.publish("Patrol: keyboard interrupt, shutting down")
             rospy.core.signal_shutdown('Patrol: keyboard interrupt')
-
-    # def __del__(self):
-    #     #deleting class
-    #     self.set_shutdown()
     
     def patrol_control_command(self, alert):
         # pdb.set_trace()
@@ -87,7 +95,7 @@ class EmergencyReaction(object):
                 self.goal_canceled = True
                 self.go_home = False
             elif alert.data == "home":
-                pdb.set_trace()
+                # pdb.set_trace()
                 self.client.cancel_goal()
                 self.next_ = False
                 self.pause = False
@@ -121,22 +129,24 @@ class EmergencyReaction(object):
         return goal
 
     def goal_reached(self):
-        pdb.set_trace()
-        rospy.loginfo("Patrol: Goal reached {}".format(self.goals[self.current_goal]))
-        self.log_pub.publish("Patrol: Goal reached {}".format(self.goals[self.current_goal]))
+        # pdb.set_trace()
+        rospy.loginfo("Patrol: Goal reached {}".format(self.goals[self.current_goal_num]))
+        self.log_pub.publish("Patrol: Goal reached {}".format(self.goals[self.current_goal_num]))
 
         if self.goal_canceled or self.pause:
             self.next_ = False
-        elif self.go_home:
+            return
+        if self.go_home:
             self.go_home = False
-        else:
-            self.current_goal += 1
-            self.next_ = True
+            return
+
+        self.current_goal_num += 1
+        self.next_ = True
 
         rospy.sleep(0.5) # to make a little stop before next command
 
     def goal_send(self, goal_to_send):
-        pdb.set_trace()
+        # pdb.set_trace()
         self.log_pub.publish("Patrol: sending to move_base goal {} ".format(goal_to_send))
         # Waits until the action server has started up and started listening for goals.
         self.log_pub.publish("Patrol: self.client.wait_for_server()")
@@ -203,38 +213,17 @@ class EmergencyReaction(object):
 
     def going_to_next_goal(self):
         self.next_ = False
-        if self.current_goal < len(self.goals):
-            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal]))
+        if self.current_goal_num < len(self.goals):
+            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal_num]))
         else:
             self.log_pub.publish("Patrol: All goals achieved! Starting patrolling again from first goal ")
-            self.current_goal = 0
-            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal]))
-
-    def controller(self):
-        pdb.set_trace()
-        #main state machine controller
-        # if self.shutdown:
-        #     self.set_shutdown()
-        # shutdown will be parsed outside of that function, in main loop
-        if self.pause:
-            self.log_pub.publish("Patrol: pause flag")
-            self.set_pause()
-        elif self.go_home:
-            self.log_pub.publish("Patrol: go_home flag")
-            self.going_home()
-        elif self.next_:
-            self.log_pub.publish("Patrol: next flag")
-            self.going_to_next_goal()
-        rospy.sleep(0.2)
+            self.current_goal_num = 0
+            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal_num]))
 
 
 # If the python node is executed as main process (sourced directly)
 if __name__ == '__main__':
-    try:
-        er = EmergencyReaction()
-        rospy.loginfo("Waiting for first command")
-        # er.controller() # not good - infinite recursion
-        # rospy.spin()
-    except rospy.ROSInterruptException:
-        er.set_shutdown()
-        rospy.loginfo("Patrol stopped due to ROS interrupt")
+
+    ph = PatrolHandler()
+    rospy.loginfo("Waiting for first command")
+
