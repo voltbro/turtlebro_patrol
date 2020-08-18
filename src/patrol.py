@@ -90,7 +90,7 @@ class EmergencyReaction(object):
                 self.client.cancel_goal()
                 self.next_ = False
                 self.pause = False
-                self.goal_canceled = False
+                self.goal_canceled = True
                 self.go_home = True
             elif alert.data == "shutdown":
                 self.client.cancel_goal()
@@ -143,11 +143,10 @@ class EmergencyReaction(object):
         self.client.wait_for_result()
         result = self.client.get_result()
 
-        """
-        while result == None or not self.goal_canceled: #"cb" fake cycle made
+        while result is None or not self.goal_canceled: #"cb" fake cycle made
             result = self.client.get_result()
             rospy.sleep(0.2)
-        """
+
         self.goal_reached()
 
     def data_loader(self):
