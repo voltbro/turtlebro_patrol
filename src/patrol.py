@@ -87,7 +87,7 @@ class EmergencyReaction(object):
                 self.goal_canceled = True
                 self.go_home = False
             elif alert.data == "home":
-
+                pdb.set_trace()
                 self.client.cancel_goal()
                 self.next_ = False
                 self.pause = False
@@ -121,7 +121,7 @@ class EmergencyReaction(object):
         return goal
 
     def goal_reached(self):
-            
+        pdb.set_trace()
         rospy.loginfo("Patrol: Goal reached {}".format(self.goals[self.current_goal]))
         self.log_pub.publish("Patrol: Goal reached {}".format(self.goals[self.current_goal]))
 
@@ -144,9 +144,9 @@ class EmergencyReaction(object):
         self.client.wait_for_result()
         result = self.client.get_result()
 
-        # while result is None or not self.goal_canceled: #"cb" fake cycle made
-        #     result = self.client.get_result()
-        #     rospy.sleep(0.2)
+        while result is None or not self.goal_canceled: #"cb" fake cycle made
+            result = self.client.get_result()
+            rospy.sleep(0.2)
 
         self.goal_reached()
 
@@ -204,6 +204,7 @@ class EmergencyReaction(object):
             self.goal_send(self.goal_message_assemble(self.goals[self.current_goal]))
 
     def controller(self):
+        pdb.set_trace()
         #main state machine controller
         # if self.shutdown:
         #     self.set_shutdown()
