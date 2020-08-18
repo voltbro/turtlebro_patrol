@@ -144,9 +144,9 @@ class EmergencyReaction(object):
         self.client.wait_for_result()
         result = self.client.get_result()
 
-        while result is None or not self.goal_canceled: #"cb" fake cycle made
-            result = self.client.get_result()
-            rospy.sleep(0.2)
+        # while result is None or not self.goal_canceled: #"cb" fake cycle made
+        #     result = self.client.get_result()
+        #     rospy.sleep(0.2)
 
         self.goal_reached()
 
