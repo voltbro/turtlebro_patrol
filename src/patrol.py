@@ -5,7 +5,7 @@ import sys
 import traceback
 import pdb
 
-#import Twist data type for direct control
+# import Twist data type for direct control
 from geometry_msgs.msg import Twist
 
 # Brings in the SimpleActionClient
@@ -18,99 +18,131 @@ from std_msgs.msg import String
 #Import standard Pose msg types and TF transformation to deal with quaternions
 from tf.transformations import quaternion_from_euler
 
-# XML parcer lib
+# XML parser lib
 import xml.etree.ElementTree as ET
 
 
 class PatrolHandler(object):
-
     def __init__(self):
-        rospy.init_node('patrol_handler')
-        # TODO remove log pub
-        # TODO create only one state 
+        rospy.init_node('patrol_handler', log_level=rospy.DEBUG)
+        # TODO create only one state
+        # TODO remove prints, remove pdb
+        # TODO add target points to rviz
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         # subs and pubs
         rospy.Subscriber('patrol_control', String, self.patrol_control_command)
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-        self.log_pub = rospy.Publisher('/patrol_log', String, queue_size=10)
-
+        # robot must wait by default
         self.state = "wait"
-        # state can be "wait" or "move" or "need_shutdown"
-        self.home_location = [0, 0, 0, 0]
-        # position where to go if "home" command recieved
+        # state can be "wait" or "move"
+        self.home_target = [0, 0, 0, 0]
+        # position where to go if "home" command received
         self.stop_cmd = Twist()
         # command to stop motors
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', '../data/goals.xml')
         # call load data from xml-file
-        self.goals = list()
+        self.targets = list()
         self.data_loader()
         # lets set current goal as 0`s element from goals array, loaded by self.data_loader()
-        self.current_goal_num = 0
-        self.current_goal = self.goals[self.current_goal_num]
+        self.current_target_num = 0
+        self.current_target = self.targets[self.current_target_num]
+        # full list of commands
+        self.allowed_user_commands = ["next", "shutdown", "pause", "home"]
+        # default user cmd is undefined and marked as done,
+        self.current_user_cmd = "done"
 
         rospy.loginfo("Init done, go to loop")
-        self.log_pub.publish("Init done, go to loop")
         # go to infinite loop
         self.loop()
 
     def loop(self):
         try:
-            # in that loop we will check if there is shutdown flag or rospy core have been crushed
+            # in that loop we will infinitely check user cmd, if it was updated, we handle it
             while not rospy.core.is_shutdown():
-                if self.state == "need_shutdown":
-                    self.log_pub.publish("Patrol: shutdown flag")
+                if self.current_user_cmd == "shutdown":
+                    rospy.logdebug("Patrol: shutdown flag")
                     # we found shutdown flag, caused by user
-                    # time to stop robot and break that infinite loop
-                    self.set_shutdown()
+                    # dont care what state it is, just do shutdown
+                    # time to stop robot
+                    self.cmd_pub.publish(self.stop_cmd)
+                    # and break that infinite loop
+                    rospy.signal_shutdown(reason="Patrol: shutdown caused by user")
                     break
-                if self.state == "need_shutdown":
-                    self.log_pub.publish("Patrol: pause flag")
-                    self.set_pause()
-                if self.go_home:
-                    self.log_pub.publish("Patrol: go_home flag")
-                    self.going_home()
-                if self.next_:
-                    self.log_pub.publish("Patrol: next flag")
-                    self.going_to_next_goal()
-                rospy.sleep(0.2)  # 5 Hz
+
+                if self.current_user_cmd == "pause":
+                    rospy.logdebug("Patrol: pause flag")
+                    # cancel current goal
+                    self.client.cancel_goal()
+                    # change the state no matter what it was before
+                    self.state = "wait"
+                    # mark user command as done
+                    self.current_user_cmd = "done"
+                    # stop motors
+                    self.cmd_pub.publish(self.stop_cmd)
+
+                if self.current_user_cmd == "home":
+                    rospy.logdebug("Patrol: go_home flag")
+                    # cancel current goal
+                    self.client.cancel_goal()
+                    # stop motors
+                    self.cmd_pub.publish(self.stop_cmd)
+                    # add new goal - home
+                    self.current_target = self.home_target
+                    home_goal = self.goal_message_assemble(self.home_target)
+                    rospy.logdebug("Patrol: sending home_goal {}".format(home_goal))
+                    self.goal_send(home_goal)
+
+                if self.current_user_cmd == "next":
+                    rospy.logdebug("Patrol: next flag")
+                    self.state = "move"
+
+                    if self.current_target_num < len(self.targets):
+                        self.goal_send(self.goal_message_assemble(self.targets[self.current_target_num]))
+                    else:
+                        rospy.logdebug("Patrol: All goals achieved! Start patrolling again from first goal ")
+                        self.current_target_num = 0
+                        self.goal_send(self.goal_message_assemble(self.targets[self.current_target_num]))
+
+                rospy.sleep(0.1)  # 10 Hz
+
         except KeyboardInterrupt:
-            self.log_pub.publish("Patrol: keyboard interrupt, shutting down")
+            rospy.logdebug("Patrol: keyboard interrupt, shutting down")
             rospy.core.signal_shutdown('Patrol: keyboard interrupt')
     
-    def patrol_control_command(self, alert):
+    def patrol_control_command(self, alert_msg):
         # pdb.set_trace()
-        if alert.data in ("next", "shutdown", "pause", "home"):  # to make sure command recieved is in list of commands
-            print("Patrol: {} sequence received".format(alert.data))
-            self.log_pub.publish("Patrol: {} sequence received".format(alert.data))
-            if alert.data == "next":
-                self.next_ = True
-                self.pause = False
-                self.goal_canceled = False
-                self.go_home = False
-            elif alert.data == "pause":
-                self.client.cancel_goal()
-                self.next_ = False
-                self.pause = True
-                self.goal_canceled = True
-                self.go_home = False
-            elif alert.data == "home":
-                # pdb.set_trace()
-                self.client.cancel_goal()
-                self.next_ = False
-                self.pause = False
-                self.goal_canceled = True
-                self.go_home = True
-            elif alert.data == "shutdown":
-                self.client.cancel_goal()
-                self.shutdown = True
-                self.next_ = False
-                self.pause = False
-                self.goal_canceled = False
-                self.go_home = False
+        if alert_msg.data in self.allowed_user_commands:
+            # to make sure received command is in list of commands
+            rospy.loginfo("Patrol: {} sequence received".format(alert_msg.data))
+            self.current_user_cmd = alert_msg.data
+            # if alert_msg.data == "next":
+            #     self.next_ = True
+            #     self.pause = False
+            #     self.goal_canceled = False
+            #     self.go_home = False
+            # elif alert_msg.data == "pause":
+            #     self.client.cancel_goal()
+            #     self.next_ = False
+            #     self.pause = True
+            #     self.goal_canceled = True
+            #     self.go_home = False
+            # elif alert_msg.data == "home":
+            #     # pdb.set_trace()
+            #     self.client.cancel_goal()
+            #     self.next_ = False
+            #     self.pause = False
+            #     self.goal_canceled = True
+            #     self.go_home = True
+            # elif alert_msg.data == "shutdown":
+            #     self.client.cancel_goal()
+            #     self.shutdown = True
+            #     self.next_ = False
+            #     self.pause = False
+            #     self.goal_canceled = False
+            #     self.go_home = False
         else:
-            self.log_pub.publish("Patrol: Command unrecognized")
-            rospy.loginfo("Patrol: Command unrecognized")
+            rospy.loginfo("Patrol: Command unrecognized '{}'".format(alert_msg.data))
 
     def goal_message_assemble(self, target):
         # Creates a new goal with the MoveBaseGoal constructor
@@ -125,51 +157,78 @@ class PatrolHandler(object):
         goal.target_pose.pose.orientation.y = q[1]
         goal.target_pose.pose.orientation.z = q[2]
         goal.target_pose.pose.orientation.w = q[3]
-        self.log_pub.publish("Patrol: created goal {} from target {} ".format(goal, target))
+        rospy.logdebug("Patrol: created goal {} from target {} ".format(goal, target))
         return goal
 
-    def goal_reached(self):
-        # pdb.set_trace()
-        rospy.loginfo("Patrol: Goal reached {}".format(self.goals[self.current_goal_num]))
-        self.log_pub.publish("Patrol: Goal reached {}".format(self.goals[self.current_goal_num]))
-
-        if self.goal_canceled or self.pause:
-            self.next_ = False
-            return
-        if self.go_home:
-            self.go_home = False
-            return
-
-        self.current_goal_num += 1
-        self.next_ = True
-
-        rospy.sleep(0.5) # to make a little stop before next command
+    # def goal_reached(self):
+    #     # pdb.set_trace()
+    #     rospy.loginfo("Patrol: Goal reached {}".format(self.targets[self.current_target_num]))
+    #
+    #     if self.goal_canceled or self.pause:
+    #         self.next_ = False
+    #         return
+    #     if self.go_home:
+    #         self.go_home = False
+    #         return
+    #
+    #     self.current_target_num += 1
+    #     self.next_ = True
+    #
+    #     rospy.sleep(0.5)  # to make a little stop before next command
 
     def goal_send(self, goal_to_send):
-        # pdb.set_trace()
-        self.log_pub.publish("Patrol: sending to move_base goal {} ".format(goal_to_send))
+
+        rospy.logdebug("Patrol: sending to move_base goal {} ".format(goal_to_send))
         # Waits until the action server has started up and started listening for goals.
-        self.log_pub.publish("Patrol: self.client.wait_for_server()")
+        rospy.logdebug("Patrol: self.client.wait_for_server()")
         self.client.wait_for_server()
+
         # Sends the goal to the action server.
-        self.log_pub.publish("Patrol: self.client.send_goal(goal_to_send)")
+        rospy.logdebug("Patrol: self.client.send_goal(goal_to_send)")
         self.client.send_goal(goal_to_send)
-        self.log_pub.publish("Patrol: self.client.wait_for_result()")
+        rospy.logdebug("Patrol: self.client.wait_for_result()")
         self.client.wait_for_result()
-        # self.log_pub.publish("Patrol: XML Parsing started")
+
         result = self.client.get_result()
-        self.log_pub.publish("Patrol: self.client.get_result() : {}".format(result))
+        rospy.logdebug("Patrol: self.client.get_result() : {}".format(result))
 
         # while result is None or not self.goal_canceled: #"cb" fake cycle made
         #     result = self.client.get_result()
         #     rospy.sleep(0.2)
 
-        self.log_pub.publish("Patrol: self.goal_reached()")
-        self.goal_reached()
+
+        # now goal reached, time to handle it
+        rospy.logdebug("Patrol: self.goal_reached()")
+        rospy.loginfo("Patrol: Goal reached {}".format(self.targets[self.current_target_num]))
+
+        # lets check if we were on a way to home
+        if self.current_target == self.home_target:
+            # it means that we dont need to set new goal, just wait
+            self.state = "wait"
+            return
+        else:
+            # if we were not on a way to home,
+            # check if the user has already changed the state from 'move' to 'wait'
+            # if state is "wait", it means that we do not need to send new goal
+            if self.state == "wait" :
+                return
+
+            if self.state == "move":
+                # we have to move
+                # self.current_target_num += 1
+                # self.current_target = self.targets[self.current_target_num]
+                # send next command to itself
+                self.current_user_cmd = "next"
+                return
+
+
+
+        rospy.sleep(0.5)
+        # to make a little stop before next command
 
     def data_loader(self):
         rospy.loginfo("Patrol: XML Parsing started")
-        self.log_pub.publish("Patrol: XML Parsing started")
+        rospy.logdebug("Patrol: XML Parsing started")
         try:
             # Define xml-goals file path
             tree = ET.parse(self.waypoints_data_file)  # get file from launch params
@@ -179,46 +238,43 @@ class PatrolHandler(object):
             # filling goals var with XML file data
             i = 0  # counter var
             for goal in root.findall('goal'):
-                self.goals.append(list())  # appending new list for new goal in goals's list
-                self.goals[i].append(goal.get('id'))
-                self.goals[i].append(goal.get('x'))
-                self.goals[i].append(goal.get('y'))
-                self.goals[i].append(goal.get('theta'))
+                self.targets.append(list())  # appending new list for new goal in goals's list
+                self.targets[i].append(goal.get('id'))
+                self.targets[i].append(goal.get('x'))
+                self.targets[i].append(goal.get('y'))
+                self.targets[i].append(goal.get('theta'))
                 i += 1
-            rospy.loginfo("Patrol: XML parcing done. goals detected: {}".format(self.goals))
-            self.log_pub.publish("Patrol:  XML parcing done. goals detected:  {}".format(self.goals))
+            rospy.loginfo("Patrol: XML parcing done. goals detected: {}".format(self.targets))
+            rospy.logdebug("Patrol:  XML parcing done. goals detected:  {}".format(self.targets))
         except Exception as e:
             rospy.logerr("XML parser failed {}".format(e))
-            self.log_pub.publish("XML parser failed")
+            rospy.logdebug("XML parser failed")
             exc_info = sys.exc_info()
             traceback.print_exception(*exc_info)
             del exc_info
 
-    def set_shutdown(self):
-        self.log_pub.publish("Patrol: shutting down patrol")
-        self.cmd_pub.publish(self.stop_cmd)  # it will be better if it can stop motors after shutdown
-        rospy.signal_shutdown(reason="Patrol: shutdown caused by user")
-
-    def set_pause(self):
-        self.cmd_pub.publish(self.stop_cmd)
+    # def set_shutdown(self):
+    #     rospy.logdebug("Patrol: shutting down patrol")
+    #     self.cmd_pub.publish(self.stop_cmd)  # it will be better if it can stop motors after shutdown
+    #     rospy.signal_shutdown(reason="Patrol: shutdown caused by user")
     
-    def going_home(self):
-        self.log_pub.publish("Patrol: go home")
-        self.log_pub.publish("Patrol: stopping robot")
-        self.cmd_pub.publish(self.stop_cmd)
-        home_goal = self.goal_message_assemble(self.home_location)
-        self.log_pub.publish("Patrol: sending home_goal {}".format(home_goal))
-        self.goal_send(home_goal)
-        # self.go_home = False
+    # def going_home(self):
+    #     rospy.logdebug("Patrol: go home")
+    #     rospy.logdebug("Patrol: stopping robot")
+    #     self.cmd_pub.publish(self.stop_cmd)
+    #     home_goal = self.goal_message_assemble(self.home_location)
+    #     rospy.logdebug("Patrol: sending home_goal {}".format(home_goal))
+    #     self.goal_send(home_goal)
+    #     # self.go_home = False
 
-    def going_to_next_goal(self):
-        self.next_ = False
-        if self.current_goal_num < len(self.goals):
-            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal_num]))
-        else:
-            self.log_pub.publish("Patrol: All goals achieved! Starting patrolling again from first goal ")
-            self.current_goal_num = 0
-            self.goal_send(self.goal_message_assemble(self.goals[self.current_goal_num]))
+    # def going_to_next_goal(self):
+    #     self.next_ = False
+    #     if self.current_target_num < len(self.targets):
+    #         self.goal_send(self.goal_message_assemble(self.targets[self.current_target_num]))
+    #     else:
+    #         rospy.logdebug("Patrol: All goals achieved! Starting patrolling again from first goal ")
+    #         self.current_target_num = 0
+    #         self.goal_send(self.goal_message_assemble(self.targets[self.current_target_num]))
 
 
 # If the python node is executed as main process (sourced directly)
