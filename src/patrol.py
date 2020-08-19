@@ -98,7 +98,11 @@ class PatrolHandler(object):
                     self.state = "move"
 
                     if self.current_target_num < len(self.targets):
-                        self.goal_send(self.goal_message_assemble(self.targets[self.current_target_num]))
+                        rospy.logdebug("Patrol: self.current_target_num < len(self.targets)")
+                        self.current_target_num += 1
+                        self.current_target = self.targets[self.current_target_num]
+                        rospy.loginfo("Patrol: next target is {}".format(self.current_target))
+                        self.goal_send(self.goal_message_assemble(self.current_target))
                     else:
                         rospy.logdebug("Patrol: All goals achieved! Start patrolling again from first goal ")
                         self.current_target_num = 0
@@ -215,8 +219,7 @@ class PatrolHandler(object):
 
             if self.state == "move":
                 # we have to move
-                # self.current_target_num += 1
-                # self.current_target = self.targets[self.current_target_num]
+
                 # send next command to itself
                 self.current_user_cmd = "next"
                 return
