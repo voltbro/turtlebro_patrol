@@ -101,10 +101,12 @@ class PatrolHandler(object):
                         rospy.logdebug("Patrol: self.current_target_num < len(self.targets)")
                         rospy.logdebug("Patrol: self.current_target_num = {}".format(self.current_target_num))
                         # rospy.logdebug("Patrol: self.current_target_num = {}".format(self.current_target_num))
-                        self.current_target_num += 1
+
                         self.current_target = self.targets[self.current_target_num]
                         rospy.loginfo("Patrol: next target is {}".format(self.current_target))
+                        self.current_target_num += 1
                         self.goal_send(self.goal_message_assemble(self.current_target))
+
                     else:
                         rospy.logdebug("Patrol: All goals achieved! Start patrolling again from first goal ")
                         self.current_target_num = 0
