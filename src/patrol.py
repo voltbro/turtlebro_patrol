@@ -97,8 +97,10 @@ class PatrolHandler(object):
                     rospy.logdebug("Patrol: next flag")
                     self.state = "move"
 
-                    if self.current_target_num < len(self.targets):
+                    if self.current_target_num < len(self.targets) - 1:
                         rospy.logdebug("Patrol: self.current_target_num < len(self.targets)")
+                        rospy.logdebug("Patrol: self.current_target_num = {}".format(self.current_target_num))
+                        # rospy.logdebug("Patrol: self.current_target_num = {}".format(self.current_target_num))
                         self.current_target_num += 1
                         self.current_target = self.targets[self.current_target_num]
                         rospy.loginfo("Patrol: next target is {}".format(self.current_target))
