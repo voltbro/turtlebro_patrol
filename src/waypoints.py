@@ -7,9 +7,10 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker
 
 #Transformations for points
+import math
 from tf.transformations import quaternion_from_euler
 
-rospy.init_node('echoer')
+marker_id = 0
 
 def goals_extractor_from_xml():
     rospy.loginfo("XML Parsing started")
@@ -38,40 +39,54 @@ def goals_extractor_from_xml():
 
 
 def points_publisher(goal):
-    publisher = rospy.Publisher('visualization_marker', Marker, queue_size = 10)
+
+    global marker_id
+    
     points = Marker()		
-    points.header.frame_id = "/map"	# publish path in map frame		
-    points.type = points.POINTS
+    points.header.frame_id = "/base_link"	# publish path in map frame		
+    points.type = points.ARROW
     points.action = points.ADD
     points.lifetime = rospy.Duration(0)
+    points.ns = "some_ns"
     points.id = marker_id
     marker_id += 1
     points.scale.x = 0.1
-    points.scale.y = 0.1	
+    points.scale.y = 0.01
+    points.scale.z = 0.01	
     points.color.a = 1.0
     points.color.r = 0.0
-    points.color.g = 0.0
-    points.color.b = 1.0
+    points.color.g = 1.0
+    points.color.b = 0.0
+    points.mesh_use_embedded_materials = True
+    
 
     # using TF.transformation func to get quaternion from theta Euler angle
     q = quaternion_from_euler(0, 0, math.radians(float(goal[3])))
 
-    point = Point()
-    point.pose.position.x = float(goal[1])
-    point.pose.position.y = float(goal[2])
-    point.pose.orientation.x = q[0]
-    point.pose.orientation.y = q[1]
-    point.pose.orientation.z = q[2]
-    point.pose.orientation.w = q[3]
+    
+    points.pose.position.x = float(goal[1])
+    points.pose.position.y = float(goal[2])
+    points.pose.orientation.x = q[0]
+    points.pose.orientation.y = q[1]
+    points.pose.orientation.z = q[2]
+    points.pose.orientation.w = q[3]
 
 
-    points.points.append(point)
+    #points.points.append(point)
     # Publish the MarkerArray
-    publisher.publish(points)
+    return points
 
 
-def main()
-   goals = goals_extractor_from_xml()
-   for i in len(goals):
-       points_publisher(goal[i])
+def main():
+    rospy.init_node('echoer')
+    publisher = rospy.Publisher('/visualization_marker', Marker, queue_size = 10)
+    rospy.sleep(1)
+    goals = goals_extractor_from_xml()
+    for i in range(len(goals)):
+        a = points_publisher(goals[i])
+        print(a)
+        publisher.publish(a)
     print("all done")
+
+main()
+rospy.spin()
