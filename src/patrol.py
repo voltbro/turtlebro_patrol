@@ -209,10 +209,10 @@ class EmergencyReaction(object):
         if self.pause:
             self.log_pub.publish("Patrol: pause flag")
             self.set_pause()
-        elif self.go_home:
+        if self.go_home:
             self.log_pub.publish("Patrol: go_home flag")
             self.going_home()
-        elif self.next_:
+        if self.next_:
             self.log_pub.publish("Patrol: next flag")
             self.going_to_next_goal()
         rospy.sleep(0.2)

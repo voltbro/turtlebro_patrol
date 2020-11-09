@@ -61,5 +61,4 @@ The control of the patrol bot is performed by sending messages of the std_msgs/S
 Accepted commands:
 1. next - starts the patrol cycle or switch robot to next goal
 2. pause - pauses patrolling at any point
-3. home - stops patrolling and sends the robot to a point with coordinates 0, 0, 0(deg)
-5. shutdown - stops patrolling and executing the package
+3. shutdown - stops patrolling and executing the package
