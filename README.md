@@ -1,6 +1,6 @@
 # Turtlebro_patrol ROS package for Turtlebro patrolbot
 
-### Dependecies
+### Dependencies
 Dependences
 To perform patrolling tasks, you should have navigation packages installed on the robot:
 
