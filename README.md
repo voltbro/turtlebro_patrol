@@ -4,6 +4,7 @@
 Dependences
 To perform patrolling tasks, you should have navigation packages installed on the robot:
 
+* turtlebro
 * turtlebro_navigation
 * amcl
 * dwa_local_planner
