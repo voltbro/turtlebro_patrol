@@ -12,6 +12,7 @@ To perform patrolling tasks, you should have navigation packages installed on th
 * map_server
 * move_base
 * move_base_msgs
+* actionlib
 
 
 ### Package installation
