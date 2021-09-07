@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import rospy
 import math
-import sys
-from pathlib import Path
 
 #import Twist data type for direct control
 from geometry_msgs.msg import Twist
@@ -17,7 +15,9 @@ from std_msgs.msg import String
 #Import standard Pose msg types and TF transformation to deal with quaternions
 from tf.transformations import quaternion_from_euler
 
-# XML parser lib
+from pathlib import Path
+
+# XML parser
 import xml.etree.ElementTree as ET
 
 
@@ -34,7 +34,6 @@ class Patrol(object):
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
         
         self.patrol_mode = "home"
-        self.on_patrol = False
 
         self.current_point = 0
         self.home_point = [0, 0, 0, 'home']  # position x y theta of home 
@@ -58,6 +57,7 @@ class Patrol(object):
 
     def on_shutdown(self):
         rospy.loginfo("Shutdown my patrol")
+        self.client.cancel_all_goals()
         self.cmd_pub.publish(Twist()) 
         rospy.sleep(0.5)      
     
@@ -159,20 +159,19 @@ class Patrol(object):
         if(self.patrol_mode == "patrol"):
             self.goal_command('next')
 
-    def fetch_points(self, goals_file):
+    def fetch_points(self, xml_file):
 
         rospy.loginfo("Patrol: XML Parsing started")
 
         try:
             # Define xml-goals file path
-            tree = ET.parse(goals_file)  # get file from launch params
+            tree = ET.parse(xml_file)  # get file from launch params
             root = tree.getroot()
-            # constructing goals data variables
 
             points = []
             points.append(self.home_point)
 
-            # filling goals var with XML file data
+            # filling points
             for xml_element in root.findall('goal'):
                 points.append([xml_element.get('x'), xml_element.get('y'), xml_element.get('theta'), xml_element.get('name')])
 
