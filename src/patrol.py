@@ -41,7 +41,7 @@ class Patrol(object):
       
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(Path(__file__).parent.absolute()) + '/../data/goals.xml')
 
-        self.debug_movement = True
+        self.debug_movement = False
 
         rospy.loginfo("Init done")
 
@@ -56,9 +56,10 @@ class Patrol(object):
 
 
     def on_shutdown(self):
+        
         rospy.loginfo("Shutdown my patrol")
-        self.client.cancel_all_goals()
         self.cmd_pub.publish(Twist()) 
+        self.client.action_client.stop()
         rospy.sleep(0.5)      
     
     def patrol_control_cb(self, message):
