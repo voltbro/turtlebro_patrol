@@ -23,7 +23,7 @@ Install the package on RaspberryPi in the "standard" way:
 cd ros_catkin_ws/src
 git clone https://github.com/voltbro/turtlebro_patrol
 cd ..
-sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space /opt/ros/melodic --pkg=turtlebro_patrol
+sudo ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space /opt/ros/noetic -DPYTHON_EXECUTABLE=/usr/bin/python3 --pkg=turtlebro_patrol
 ```
 
 ### Launch
@@ -52,7 +52,7 @@ _Important note!_
 
 when you adding to goals.xml point like
 ```
-<goal id='1' x='1' y='0' theta='90'/>
+<goal x='1' y='0' theta='90' name="point_name"/>
 ```
 remember that x axis is forward for robot, and y-axis is left for robot. 
 "Theta" should be set in degrees with right-hand-rule rotation
@@ -61,6 +61,8 @@ remember that x axis is forward for robot, and y-axis is left for robot.
 The control of the patrol bot is performed by sending messages of the std_msgs/String type to the topic /patrol_control
 
 Accepted commands:
-1. next - starts the patrol cycle or switch robot to next goal
+1. start - starts the patrol cycle or switch robot to next goal
 2. pause - pauses patrolling at any point
-3. shutdown - stops patrolling and executing the package
+3. resume - resume patrolling at any point
+4. home - go to home position
+5. shutdown - stops patrolling and executing the package

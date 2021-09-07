@@ -158,6 +158,8 @@ class Patrol(object):
         
         # renew patrol point
         if(self.patrol_mode == "patrol"):
+            # small pause in point
+            rospy.sleep(1)
             self.goal_command('next')
 
     def fetch_points(self, xml_file):
