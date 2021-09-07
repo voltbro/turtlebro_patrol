@@ -11,6 +11,7 @@ import actionlib
 # Brings in the .action file and messages used by the move base action
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from std_msgs.msg import String
+from turtlebro_patrol.msg import PatrolPoint
 
 #Import standard Pose msg types and TF transformation to deal with quaternions
 from tf.transformations import quaternion_from_euler
@@ -32,6 +33,8 @@ class Patrol(object):
         rospy.Subscriber('patrol_control', String, self.patrol_control_cb)
 
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+        self.reached_point_pub = rospy.Publisher('/patrol_control/reached', PatrolPoint, queue_size=5)
+
         
         self.patrol_mode = "home"
 
@@ -41,7 +44,7 @@ class Patrol(object):
       
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(Path(__file__).parent.absolute()) + '/../data/goals.xml')
 
-        self.debug_movement = False
+        self.debug_movement = True
 
         rospy.loginfo("Init done")
 
@@ -154,8 +157,18 @@ class Patrol(object):
 
     def goal_reached(self):
 
-        rospy.loginfo("Patrol: Goal reached {}".format(self.patrol_points[self.current_point][3]))
+        point = self.patrol_points[self.current_point]
+
+        rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
         
+        patrol_point = PatrolPoint(
+                x = float(point[0]),
+                y = float(point[1]),
+                theta = int(point[2]),
+                name = point[3])
+
+        self.reached_point_pub.publish(patrol_point)
+
         # renew patrol point
         if(self.patrol_mode == "patrol"):
             # small pause in point
