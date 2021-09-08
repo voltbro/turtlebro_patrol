@@ -42,7 +42,7 @@ class Patrol(object):
       
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(Path(__file__).parent.absolute()) + '/../data/goals.xml')
 
-        self.fake_movement = True
+        self.fake_movement = False
 
         rospy.loginfo("Init done")
 
