@@ -46,7 +46,7 @@ class Patrol(object):
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(
             Path(__file__).parent.absolute()) + '/../data/goals.xml')
 
-        self.fake_movement = False
+        self.fake_movement = True
 
         rospy.loginfo("Init done")
 
@@ -58,8 +58,7 @@ class Patrol(object):
         while not rospy.is_shutdown():
 
             if self.command is not None:
-                self.patrol_command(self.command)
-                self.command = None
+                self.exec_command()
 
             rospy.sleep(0.1)
 
@@ -83,22 +82,29 @@ class Patrol(object):
         else:
             rospy.loginfo("Patrol: Command unrecognized")
 
-    def patrol_command(self, command):
+    def exec_command(self):
 
-        if command == "shutdown":
+        if self.command == "shutdown":
+            self.command = None
             rospy.signal_shutdown("Have shutdown command in patrol_control topic")
 
-        #have movement command
-        if command in ["start", "home", "resume", "next"]:
+        # do nothing just clear command 
+        if self.command in ["pause"]:    
+            self.command = None
 
-            patrol_point = self.get_patrol_point(command)
+        # have movement command
+        if self.command in ["start", "home", "resume", "next"]:
+
+            patrol_point = self.get_patrol_point(self.command)
             goal = self.goal_message_assemble(patrol_point)
 
             rospy.loginfo("Patrol: sending to move_base goal {} ".format(goal.target_pose.pose.position))
             
+            self.command = None
+            
             # no real movement on debug mode 
             if self.fake_movement:
-                rospy.sleep(5)
+                rospy.sleep(2)
                 self.move_base_cb(GoalStatus.SUCCEEDED, MoveBaseResult())
             else :
                 # Waits until the action server has started up and started listening for goals.
@@ -117,7 +123,7 @@ class Patrol(object):
 
         if command == 'next':
             self.current_point += 1
-            #cycle patrol points
+            # cycle patrol points
             if self.current_point >= len(self.patrol_points):
                self.current_point = 1 
             
@@ -126,19 +132,14 @@ class Patrol(object):
 
     def move_base_cb(self, status, result):
 
+        point = self.patrol_points[self.current_point]
+        
         if status == GoalStatus.SUCCEEDED:
-            rospy.loginfo("Patrol: Goal reached {}".format(
-                self.patrol_points[self.current_point][3]))
+            rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
 
         if status == GoalStatus.PREEMPTED:
-            rospy.loginfo("Patrol: Goal censeled by client {}".format(
-                self.patrol_points[self.current_point][3]))
+            rospy.loginfo("Patrol: Goal censeled by client {}".format(point[3]))
 
-
-        point = self.patrol_points[self.current_point]
-
-        rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
-        
         patrol_point = PatrolPoint(
                 x = float(point[0]),
                 y = float(point[1]),
@@ -209,7 +210,6 @@ if __name__ == '__main__':
         rospy.init_node('turtlebro_patroll')
         patrol = Patrol()
         patrol.move()
-
 
     except rospy.ROSInterruptException:
         patrol.on_shutdown()
