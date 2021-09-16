@@ -10,7 +10,7 @@ import actionlib
 from actionlib_msgs.msg import GoalStatus
 
 # Brings in the .action file and messages used by the move base action
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseResult
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from std_msgs.msg import String
 from turtlebro_patrol.msg import PatrolPoint
 
@@ -31,22 +31,24 @@ class Patrol(object):
 
         # Create an action client called "move_base" with action definition file "MoveBaseAction"
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        # Waits until the action server has started up and started listening for goals.
+        self.client.wait_for_server()
+
         rospy.Subscriber('patrol_control', String, self.patrol_control_cb)
 
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
         self.reached_point_pub = rospy.Publisher('/patrol_control/reached', PatrolPoint, queue_size=5)
 
-        self.patrol_mode = True
-        self.command = None
-
+        self.on_patrol = True
+        self.point_pause = False
         self.current_point = 0
+        self.goal = None
+
         self.home_point = [0, 0, 0, 'home']  # position x y theta of home
         self.patrol_points = []
 
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(
             Path(__file__).parent.absolute()) + '/../data/goals.xml')
-
-        self.fake_movement = True
 
         rospy.loginfo("Init done")
 
@@ -56,60 +58,47 @@ class Patrol(object):
 
         # in that loop we will check if there is shutdown flag or rospy core have been crushed
         while not rospy.is_shutdown():
-
-            if self.command is not None:
-                self.exec_command()
+            if self.goal is not None:
+                self.client.send_goal(self.goal, done_cb=self.move_base_cb)
+                self.goal = None
 
             rospy.sleep(0.1)
 
     def patrol_control_cb(self, message):
 
-        if message.data in ["start", "pause", "resume", "home", "shutdown"]:
+        if message.data in ["start", "pause", "resume", "home", "shutdown", "point_pause", "point_resume"]:
 
             rospy.loginfo("Patrol: {} sequence received".format(message.data))
 
-            # stop robot at new message
-            self.client.cancel_goal()
-            self.cmd_pub.publish(Twist())
+            if message.data in ["pause", "point_pause", "home", "start", "shutdown"]:
+                self.client.cancel_all_goals()  
 
-            self.command = message.data
+            if message.data == "shutdown":
+                rospy.signal_shutdown("Have shutdown command in patrol_control topic")
 
-            if message.data in ["start", "resume"]:
-                self.patrol_mode = True
-            else:
-                self.patrol_mode = False
+            if message.data == "start":    
+                self.on_patrol = True
+                
+            if message.data == "home":    
+                self.on_patrol = False
 
+            # resume patrol opp only if in patroll mode
+            if message.data in ["resume", "home", "start"]:
+                patrol_point = self.get_patrol_point(message.data)
+                self.goal = self.goal_message_assemble(patrol_point)
+                    
+            if message.data == "point_resume":
+                if self.point_pause:
+                    patrol_point = self.get_patrol_point(message.data)
+                    self.goal = self.goal_message_assemble(patrol_point) 
+
+            if message.data == "point_pause":
+                self.point_pause = True
+            else :
+                self.point_pause = False     
+      
         else:
             rospy.loginfo("Patrol: Command unrecognized")
-
-    def exec_command(self):
-
-        if self.command == "shutdown":
-            self.command = None
-            rospy.signal_shutdown("Have shutdown command in patrol_control topic")
-
-        # do nothing just clear command 
-        if self.command in ["pause"]:    
-            self.command = None
-
-        # have movement command
-        if self.command in ["start", "home", "resume", "next"]:
-
-            patrol_point = self.get_patrol_point(self.command)
-            goal = self.goal_message_assemble(patrol_point)
-
-            rospy.loginfo("Patrol: sending to move_base goal {} ".format(goal.target_pose.pose.position))
-            
-            self.command = None
-            
-            # no real movement on debug mode 
-            if self.fake_movement:
-                rospy.sleep(2)
-                self.move_base_cb(GoalStatus.SUCCEEDED, MoveBaseResult())
-            else :
-                # Waits until the action server has started up and started listening for goals.
-                self.client.wait_for_server()
-                self.client.send_goal(goal, done_cb=self.move_base_cb)
 
 
     def get_patrol_point(self, command):
@@ -129,29 +118,31 @@ class Patrol(object):
             
         return self.patrol_points[self.current_point]
 
-
     def move_base_cb(self, status, result):
 
         point = self.patrol_points[self.current_point]
-        
+
+        if status == GoalStatus.PREEMPTED:
+            rospy.loginfo("Patrol: Goal cancelled {}".format(point[3]))
+
         if status == GoalStatus.SUCCEEDED:
             rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
 
-        if status == GoalStatus.PREEMPTED:
-            rospy.loginfo("Patrol: Goal censeled by client {}".format(point[3]))
+            # renew patrol point
+            if self.on_patrol:
+                next_patrol_point = self.get_patrol_point('next')
+                rospy.sleep(0.5)  # small pause in point
+                self.goal = self.goal_message_assemble(next_patrol_point)
 
-        patrol_point = PatrolPoint(
+            patrol_point = PatrolPoint(
                 x = float(point[0]),
                 y = float(point[1]),
                 theta = int(point[2]),
                 name = point[3])
 
-        self.reached_point_pub.publish(patrol_point)
+            self.reached_point_pub.publish(patrol_point)                
+            
 
-        # renew patrol point
-        if self.patrol_mode:
-            rospy.sleep(1)  # small pause in point
-            self.command = 'next'
 
     def fetch_points(self, xml_file):
 
