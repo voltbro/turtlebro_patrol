@@ -66,3 +66,11 @@ Accepted commands:
 3. resume - resume patrolling at any point
 4. home - go to home position
 5. shutdown - stops patrolling and executing the package
+
+
+### Run 
+
+run with callback_service 
+```
+python3 patrol.py _point_callback_service:=turtlebro_excursion
+```
