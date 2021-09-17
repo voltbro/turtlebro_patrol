@@ -22,7 +22,6 @@ from pathlib import Path
 # XML parser
 import xml.etree.ElementTree as ET
 
-
 class Patrol(object):
 
     def __init__(self):
