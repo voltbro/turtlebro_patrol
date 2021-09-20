@@ -91,13 +91,13 @@ class Patrol(object):
             if message.data == "shutdown":
                 rospy.signal_shutdown("Have shutdown command in patrol_control topic")
 
-            if message.data == "start":    
+            if message.data in ["start", "resume", "shutdown"]:    
                 self.on_patrol = True
                 
-            if message.data == "home":    
+            if message.data in ["home", "pause"]:    
                 self.on_patrol = False
 
-            # resume patrol opp only if in patroll mode
+            # start / resume movement opp 
             if message.data in ["resume", "home", "start"]:
                 patrol_point = self.get_patrol_point(message.data)
                 self.goal = self.goal_message_assemble(patrol_point)
@@ -133,12 +133,6 @@ class Patrol(object):
         if status == GoalStatus.SUCCEEDED:
             rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
 
-            # renew patrol point
-            if self.on_patrol:
-                next_patrol_point = self.get_patrol_point('next')
-                rospy.sleep(0.5)  # small pause in point
-                self.goal = self.goal_message_assemble(next_patrol_point)  
-
             patrol_point = PatrolPoint(
                 x = float(point[0]),
                 y = float(point[1]),
@@ -154,6 +148,11 @@ class Patrol(object):
                 self.call_back_service.call(request)
                 rospy.loginfo("Call patroll Service: finish")
 
+            # renew patrol point if on patroll mode
+            if self.on_patrol:
+                next_patrol_point = self.get_patrol_point('next')
+                rospy.sleep(0.5)  # small pause in point
+                self.goal = self.goal_message_assemble(next_patrol_point)  
 
     def fetch_points(self, xml_file):
 
