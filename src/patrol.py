@@ -10,8 +10,10 @@ import actionlib
 from actionlib_msgs.msg import GoalStatus
 
 # Brings in the .action file and messages used by the move base action
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseResult
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from std_msgs.msg import String
+from turtlebro_patrol.msg import PatrolPoint
+from turtlebro_patrol.srv import PatrolPointCallback, PatrolPointCallbackRequest
 
 #Import standard Pose msg types and TF transformation to deal with quaternions
 from tf.transformations import quaternion_from_euler
@@ -21,32 +23,50 @@ from pathlib import Path
 # XML parser
 import xml.etree.ElementTree as ET
 
-
 class Patrol(object):
 
     def __init__(self):
 
         rospy.on_shutdown(self.on_shutdown)
 
-        # Create an action client called "move_base" with action definition file "MoveBaseAction"
-        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         rospy.Subscriber('patrol_control', String, self.patrol_control_cb)
 
         self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
+        self.reached_point_pub = rospy.Publisher('/patrol_control/reached', PatrolPoint, queue_size=5)
 
-        self.patrol_mode = True
-        self.command = None
+        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        rospy.loginfo("Waiting move_base action")
+        self.client.wait_for_server()
 
+        self.on_patrol = True
         self.current_point = 0
+        self.goal = None
+
         self.home_point = [0, 0, 0, 'home']  # position x y theta of home
         self.patrol_points = []
 
         self.waypoints_data_file = rospy.get_param('~waypoints_data_file', str(
             Path(__file__).parent.absolute()) + '/../data/goals.xml')
 
-        self.fake_movement = False
+        service_name = rospy.get_param('~point_callback_service', False)
+
+        self.init_callback_service(service_name)
 
         rospy.loginfo("Init done")
+
+    def init_callback_service(self, service_name):
+
+        if service_name:
+
+            self.call_back_service = rospy.ServiceProxy(service_name, PatrolPointCallback)
+            rospy.loginfo(f"Waiting point callback service : {service_name}")
+            self.call_back_service.wait_for_service()
+            rospy.loginfo(f"Init service: {service_name}")
+
+        else:
+            self.call_back_service = False
+            rospy.loginfo("No point callback service")
+ 
 
     def move(self):
 
@@ -54,10 +74,9 @@ class Patrol(object):
 
         # in that loop we will check if there is shutdown flag or rospy core have been crushed
         while not rospy.is_shutdown():
-
-            if self.command is not None:
-                self.patrol_command(self.command)
-                self.command = None
+            if self.goal is not None:
+                self.client.send_goal(self.goal, done_cb=self.move_base_cb)
+                self.goal = None
 
             rospy.sleep(0.1)
 
@@ -67,41 +86,24 @@ class Patrol(object):
 
             rospy.loginfo("Patrol: {} sequence received".format(message.data))
 
-            # stop robot at new message
-            self.client.cancel_goal()
-            self.cmd_pub.publish(Twist())
+            self.client.cancel_all_goals()  
 
-            self.command = message.data
+            if message.data == "shutdown":
+                rospy.signal_shutdown("Have shutdown command in patrol_control topic")
 
-            if message.data in ["start", "resume"]:
-                self.patrol_mode = True
-            else:
-                self.patrol_mode = False
+            if message.data in ["start", "resume", "shutdown"]:    
+                self.on_patrol = True
+                
+            if message.data in ["home", "pause"]:    
+                self.on_patrol = False
 
+            # start / resume movement opp 
+            if message.data in ["resume", "home", "start"]:
+                patrol_point = self.get_patrol_point(message.data)
+                self.goal = self.goal_message_assemble(patrol_point)
+                     
         else:
             rospy.loginfo("Patrol: Command unrecognized")
-
-    def patrol_command(self, command):
-
-        if command == "shutdown":
-            rospy.signal_shutdown("Have shutdown command in patrol_control topic")
-
-        #have movement command
-        if command in ["start", "home", "resume", "next"]:
-
-            patrol_point = self.get_patrol_point(command)
-            goal = self.goal_message_assemble(patrol_point)
-
-            rospy.loginfo("Patrol: sending to move_base goal {} ".format(goal.target_pose.pose.position))
-            
-            # no real movement on debug mode 
-            if self.fake_movement:
-                rospy.sleep(5)
-                self.move_base_cb(GoalStatus.SUCCEEDED, MoveBaseResult())
-            else :
-                # Waits until the action server has started up and started listening for goals.
-                self.client.wait_for_server()
-                self.client.send_goal(goal, done_cb=self.move_base_cb)
 
 
     def get_patrol_point(self, command):
@@ -114,28 +116,43 @@ class Patrol(object):
             self.current_point = 1  
 
         if command == 'next':
+            # cycle patrol points
             self.current_point += 1
-            #cycle patrol points
             if self.current_point >= len(self.patrol_points):
                self.current_point = 1 
             
         return self.patrol_points[self.current_point]
 
-
     def move_base_cb(self, status, result):
 
-        if status == GoalStatus.SUCCEEDED:
-            rospy.loginfo("Patrol: Goal reached {}".format(
-                self.patrol_points[self.current_point][3]))
+        point = self.patrol_points[self.current_point]
 
         if status == GoalStatus.PREEMPTED:
-            rospy.loginfo("Patrol: Goal censeled by client {}".format(
-                self.patrol_points[self.current_point][3]))
+            rospy.loginfo("Patrol: Goal cancelled {}".format(point[3]))
 
-        # renew patrol point
-        if self.patrol_mode:
-            rospy.sleep(1)  # small pause in point
-            self.command = 'next'
+        if status == GoalStatus.SUCCEEDED:
+            rospy.loginfo("Patrol: Goal reached {}".format(point[3]))
+
+            patrol_point = PatrolPoint(
+                x = float(point[0]),
+                y = float(point[1]),
+                theta = int(point[2]),
+                name = point[3])
+
+            self.reached_point_pub.publish(patrol_point)        
+
+            if self.call_back_service:
+                rospy.loginfo("Call patroll Service")
+                request = PatrolPointCallbackRequest()
+                request.patrol_point = patrol_point
+                self.call_back_service.call(request)
+                rospy.loginfo("Call patroll Service: finish")
+
+            # renew patrol point if on patroll mode
+            if self.on_patrol:
+                next_patrol_point = self.get_patrol_point('next')
+                rospy.sleep(0.5)  # small pause in point
+                self.goal = self.goal_message_assemble(next_patrol_point)  
 
     def fetch_points(self, xml_file):
 
@@ -194,7 +211,6 @@ if __name__ == '__main__':
         rospy.init_node('turtlebro_patroll')
         patrol = Patrol()
         patrol.move()
-
 
     except rospy.ROSInterruptException:
         patrol.on_shutdown()
