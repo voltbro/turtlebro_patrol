@@ -213,5 +213,6 @@ if __name__ == '__main__':
         patrol.move()
 
     except rospy.ROSInterruptException:
+
         patrol.on_shutdown()
         rospy.loginfo("Patrol stopped due to ROS interrupt")
