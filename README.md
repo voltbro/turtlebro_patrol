@@ -69,9 +69,9 @@ Accepted commands:
 
 ### Callback_service
 
-If you need run any action on reachet point, you must specify ```point_callback_service``` from ```.launch``` file
+If you need run any action on patol point, you must specify ```point_callback_service``` from ```.launch``` file
 
-Patrol node run Service request with ```PatrolPointCallback``` message type.
+Patrol node will run Service request with ```PatrolPointCallback``` message type on the reach of the point.
 
 
 
