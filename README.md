@@ -43,9 +43,11 @@ roslaunch turtlebro_patrol patrol_run.launch
 ```
 
 ### Configuring patrolling
-The coordinates of the points where the robot starts patrolling are located in the file
-~/catkin_ws/src/turtlebro_patrol/data/goals.xml
+The coordinates of the points where the robot starts patrolling are located in the file:
 
+```
+~/catkin_ws/src/turtlebro_patrol/data/goals.xml
+```
 
 _Important note!_ 
 
@@ -69,7 +71,7 @@ Accepted commands:
 
 ### Callback_service
 
-If you need run any action on patol point, you must specify ```point_callback_service``` from ```.launch``` file
+If you need run any action on patrol point, you must specify ```point_callback_service``` from ```.launch``` file
 
 Patrol node will run Service request with ```PatrolPointCallback``` message type on the reach of the point.
 
