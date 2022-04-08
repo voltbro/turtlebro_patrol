@@ -20,7 +20,7 @@ To perform patrolling tasks, you should have navigation packages installed on th
 Install the package on RaspberryPi in the "standard" way:
 
 ```
-cd catkin_ws/src
+cd ~/catkin_ws/src
 git clone https://github.com/voltbro/turtlebro_patrol
 cd ..
 catkin_make --pkg turtlebro_patrol
